@@ -514,3 +514,39 @@ printf 的参数不在栈上了
     sl('sh')
     r.interactive()
 ```
+
+# lab12
+
+fastbin attack
+
+* free(p1);free(p2);free(p1)
+* 注意fake_chunk的size,在x64上，高4字节可以不管。
+
+```
+1583	/* offset 2 to use otherwise unindexable first 2 bins */
+1584	#define fastbin_index(sz) \
+1585	  ((((unsigned int) (sz)) >> (SIZE_SZ == 8 ? 4 : 3)) - 2)
+```
+
+本题中got表前有一段内存为00000060,所以可以作为一个大小为0x50的fake chunk。
+
+# lab13
+off by one=>chunk overlapping (or unlink)
+
+A|B|C|
+
+* A覆盖B的size=b+c
+* free B
+* malloc (b+c)
+
+free时会验证当前块的下一块的inuse必须为1,所以要将C整个包含进来
+
+# lab14
+
+unsorted bin attack => global\_max_\fast =>fastbin attack
+
+```
+3728	          /* remove from unsorted list */
+3729	          unsorted_chunks (av)->bk = bck;
+3730	          bck->fd = unsorted_chunks (av);
+```
